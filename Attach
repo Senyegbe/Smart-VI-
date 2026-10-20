@@ -1,0 +1,81 @@
+// --- Pin Definitions ---
+const int trigPin = 9;       // Ultrasonic sensor Trigger pin
+const int echoPin = 8;       // Ultrasonic sensor Echo pin
+const int motorPin = 6;      // Vibration motor pin (via transistor/driver)
+const int ldrPin = A0;       // LDR sensor pin
+const int caneLightPin = 5;  // White cane LED / light pin
+
+// --- Thresholds & Settings ---
+const int lightThreshold = 500;    // Adjust based on your LDR readings (dark vs light)
+const int obstacleThreshold = 50;  // Distance in cm to start triggering vibration
+
+void setup() {
+  // Initialize Serial Communication for debugging
+  Serial.begin(9600);
+
+  // Configure sensor pins
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  // Configure actuator and output pins
+  pinMode(motorPin, OUTPUT);
+  pinMode(caneLightPin, OUTPUT);
+  pinMode(ldrPin, INPUT);
+}
+
+void loop() {
+  // ==========================================
+  // 1. OBSTACLE DETECTION & VIBRATION FEEDBACK
+  // ==========================================
+  
+  // Clear the trigPin by setting it LOW
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  
+  // Trigger the sensor by setting HIGH for 10 microseconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // Read the echoPin and calculate distance in cm
+  long duration = pulseIn(echoPin, HIGH);
+  int distance = duration * 0.034 / 2;
+
+  // Check if an obstacle is within range
+  if (distance > 0 && distance < obstacleThreshold) {
+    // Map distance to a vibration pulse delay (closer = faster/stronger pulsing)
+    // When distance is 5cm delay is short (fast pulse), when 50cm delay is long (slow pulse)
+    int pulseDelay = map(distance, 2, obstacleThreshold, 50, 400);
+    
+    digitalWrite(motorPin, HIGH);
+    delay(pulseDelay);
+    digitalWrite(motorPin, LOW);
+    delay(pulseDelay);
+    
+    Serial.print("Obstacle detected! Distance: ");
+    Serial.print(distance);
+    Serial.println(" cm");
+  } else {
+    // No obstacle close by, keep motor off
+    digitalWrite(motorPin, LOW);
+  }
+
+  // ==========================================
+  // 2. LDR AUTOMATIC NIGHT LIGHT
+  // ==========================================
+  
+  int ldrValue = analogRead(ldrPin);
+  
+  // If ambient light drops below the threshold (it's dark), turn on the cane light
+  if (ldrValue < lightThreshold) {
+    digitalWrite(caneLightPin, HIGH);
+    Serial.print("Night detected (LDR: ");
+    Serial.print(ldrValue);
+    Serial.println(") - Cane light ON");
+  } else {
+    digitalWrite(caneLightPin, LOW);
+  }
+
+  // Small delay before the next loop cycle
+  delay(50);
+}
